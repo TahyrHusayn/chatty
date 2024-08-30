@@ -10,6 +10,7 @@ let userId: number = 0;
 let activeUsers: number = 0;
 
 const app = express();
+
 app.use(express.json());
 app.use(cors());
 
@@ -24,18 +25,6 @@ httpServer.on("error", (error: Error) => {
 });
 
 const wss = new WebSocketServer({ server: httpServer });
-
-app.get("/", (req: Request, res: Response) => {
-  const url = new URL(req.url!, `https://${req.headers.host}`);
-
-  if (url.pathname !== "/favicon.ico") {
-    console.log(
-      `${new Date().toISOString()} - Received request for ${req.url}`
-    );
-  }
-
-  res.end("hey!");
-});
 
 wss.on("connection", (ws: WebSocket.WebSocket) => {
   userId++;
