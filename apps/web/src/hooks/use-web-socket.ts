@@ -1,7 +1,5 @@
-"use client";
-
 import { useState, useEffect, useRef, useCallback } from "react";
-import throttle from "lodash/throttle"; // Assuming you're using lodash for throttling
+import throttle from "lodash/throttle";
 
 type Message = { text: string; isSent: boolean; id?: number };
 
@@ -10,23 +8,22 @@ export function useWebSocket(wsUrl: string) {
   const [socket, setSocket] = useState<WebSocket | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const hasSentSecondRequest = useRef(false);
+  const reconnectAttempts = useRef(0);
+  const maxReconnectAttempts = 11; // To cover slightly over 50 seconds
+  const reconnectInterval = 5000; // 5 seconds
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Establish WebSocket connection and handle events
-  useEffect(() => {
+  const connect = useCallback(() => {
     const newSocket = new WebSocket(wsUrl);
 
     newSocket.onopen = () => {
       console.log("Connection established");
       setSocket(newSocket);
-
-      // Schedule a second request to be sent after 50 seconds
-      setTimeout(() => {
-        if (newSocket.readyState === WebSocket.OPEN && !hasSentSecondRequest.current) {
-          console.log("Second request sent after 50 seconds");
-          hasSentSecondRequest.current = true; // Set flag to true to prevent further requests
-        }
-      }, 50000); // 50 seconds
+      reconnectAttempts.current = 0;
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
     };
 
     newSocket.onmessage = (message: MessageEvent) => {
@@ -40,24 +37,38 @@ export function useWebSocket(wsUrl: string) {
 
     newSocket.onclose = (event) => {
       console.error("WebSocket Closed:", event);
+      setSocket(null);
+
+      if (reconnectAttempts.current < maxReconnectAttempts) {
+        console.log(`Attempting to reconnect... (${reconnectAttempts.current + 1}/${maxReconnectAttempts})`);
+        reconnectTimeoutRef.current = setTimeout(connect, reconnectInterval);
+        reconnectAttempts.current++;
+      } else {
+        console.error("Max reconnect attempts reached. Please refresh the page.");
+      }
     };
 
     return () => {
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
       newSocket.close();
     };
   }, [wsUrl]);
 
-  // Scroll to the latest message
+  useEffect(() => {
+    const cleanup = connect();
+    return cleanup;
+  }, [connect]);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Handle input changes
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInputValue(e.target.value);
   };
 
-  // Handle button click with throttling
   const handleButtonClick = useCallback(
     throttle(() => {
       if (socket?.readyState === WebSocket.OPEN && inputValue.trim()) {
@@ -78,7 +89,6 @@ export function useWebSocket(wsUrl: string) {
     [socket, inputValue]
   );
 
-  // Handle key press for Enter key
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       handleButtonClick();
