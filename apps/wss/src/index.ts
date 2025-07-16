@@ -1,20 +1,16 @@
 require("dotenv").config();
 
-import cors from "cors";
+import http from "http";
 import WebSocket, { WebSocketServer } from "ws";
-import express, { Request, Response } from "express";
 
 const port = process.env.PORT;
 
 let userId: number = 0;
 let activeUsers: number = 0;
 
-const app = express();
+const httpServer = http.createServer();
 
-app.use(express.json());
-app.use(cors());
-
-const httpServer = app.listen(port, () => {
+httpServer.listen(port, () => {
   console.log(
     `${new Date().toISOString()} - wss server is listening on port ${port}`
   );
@@ -35,7 +31,7 @@ wss.on("connection", (ws: WebSocket.WebSocket) => {
 
   ws.on("message", (data: WebSocket.Data, isBinary: boolean) => {
     console.log(`Received ${isBinary ? 'binary' : 'text'} message: ${data}`);
-  
+
     wss.clients.forEach((client: WebSocket.WebSocket) => {
       if (client.readyState === WebSocket.OPEN && client !== ws) { // Exclude sending client
         client.send(data, { binary: isBinary });
