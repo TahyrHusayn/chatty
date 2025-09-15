@@ -1,0 +1,12 @@
+[package]
+name = "wss"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+futures-util = "0.3"
+
+# Use versions compatible with the hyper v0.14 ecosystem
+hyper = { version = "0.14", features = ["full"] }
+hyper-tungstenite = "0.11"

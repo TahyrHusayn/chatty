@@ -13,7 +13,7 @@ export function useWebSocket(wsUrl: string) {
   const reconnectAttempts = useRef(0);
   const maxReconnectAttempts = 11; // To cover slightly over 50 seconds
   const reconnectInterval = 5000; // 5 seconds
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const connect = useCallback(() => {
     const newSocket = new WebSocket(wsUrl);

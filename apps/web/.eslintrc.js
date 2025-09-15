@@ -6,4 +6,16 @@ module.exports = {
   parserOptions: {
     project: true,
   },
+  // Add this plugins array
+  plugins: ["@typescript-eslint"],
+  rules: {
+    "no-unused-vars": "off",
+    "@typescript-eslint/no-unused-vars": [
+      "warn",
+      {
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_"
+      }
+    ]
+  }
 };

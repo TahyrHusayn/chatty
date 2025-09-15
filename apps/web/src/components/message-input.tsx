@@ -7,8 +7,8 @@ import { DebouncedFuncLeading } from "lodash";
 interface MessageInputProps {
   inputValue: string;
   handleButtonClick: DebouncedFuncLeading<() => void>;
-  handleKeyPress: (e: React.KeyboardEvent<HTMLInputElement>) => void;
-  handleInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  handleKeyPress: (_e: React.KeyboardEvent<HTMLInputElement>) => void;
+  handleInputChange: (_e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
 export function MessageInput({
