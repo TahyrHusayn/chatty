@@ -4,9 +4,18 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-tokio = { version = "1", features = ["full"] }
+# Only enable the features we actually need from tokio
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync"] }
 futures-util = "0.3"
 
-# Use versions compatible with the hyper v0.14 ecosystem
-hyper = { version = "0.14", features = ["full"] }
+# Only enable the necessary server and http features from hyper
+hyper = { version = "0.14", features = ["server", "http1", "tcp"] }
 hyper-tungstenite = "0.11"
+
+# This section is new. It optimizes the final build.
+[profile.release]
+opt-level = 'z'     # Optimize for size
+lto = true          # Enable Link Time Optimization
+codegen-units = 1   # Maximize optimizations
+panic = 'abort'     # Abort on panic instead of unwinding stack
+strip = true        # Strip symbols from the binary

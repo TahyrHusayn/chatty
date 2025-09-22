@@ -2,17 +2,20 @@ use {
     futures_util::{SinkExt, StreamExt},
     hyper::{
         service::{make_service_fn, service_fn},
-        Body, Request, Response, Server,
+        Body, Request, Response, Server, StatusCode,
     },
-    hyper_tungstenite::{upgrade, is_upgrade_request},
+    hyper_tungstenite::tungstenite::Message,
+    hyper_tungstenite::{is_upgrade_request, upgrade},
     std::{
         collections::HashMap,
         convert::Infallible,
         net::SocketAddr,
-        sync::{Arc, atomic::{AtomicUsize, Ordering}},
+        sync::{
+            atomic::{AtomicUsize, Ordering},
+            Arc,
+        },
     },
     tokio::sync::{mpsc, Mutex},
-    hyper_tungstenite::tungstenite::Message,
 };
 
 // A unique ID for each client connection.
@@ -35,10 +38,10 @@ async fn handle_request(
 
             // Get a new unique ID for this client.
             let my_id = NEXT_USER_ID.fetch_add(1, Ordering::Relaxed);
-            
+
             // Create a channel for this client.
             let (tx, mut rx) = mpsc::unbounded_channel();
-            
+
             // Add the client's sender to the shared state.
             peers.lock().await.insert(my_id, tx);
 
@@ -54,15 +57,22 @@ async fn handle_request(
                 if msg.is_close() {
                     break;
                 }
-                let peers_map = peers.lock().await;
-                for (&peer_id, tx) in peers_map.iter() {
-                    // Send to all peers except the sender.
-                    if my_id != peer_id {
-                        tx.send(msg.clone()).ok();
-                    }
+
+                // Clone the senders we need inside the lock, then release the lock.
+                let senders: Vec<_> = {
+                    let peers_map = peers.lock().await;
+                    peers_map
+                        .iter()
+                        .filter(|(&peer_id, _)| my_id != peer_id) // Filter out the sender
+                        .map(|(_, tx)| tx.clone()) // Clone the sender channel
+                        .collect()
+                };
+
+                // Now, send the messages without holding the lock.
+                for tx in senders {
+                    tx.send(msg.clone()).ok();
                 }
             }
-
             // The client has disconnected. Remove them from the peers map.
             println!("Client {} disconnected.", my_id);
             peers.lock().await.remove(&my_id);
@@ -70,7 +80,9 @@ async fn handle_request(
 
         Ok(response)
     } else {
-        Ok(Response::new(Body::from("This is a WebSocket server.")))
+        let mut response = Response::new(Body::empty());
+        *response.status_mut() = StatusCode::NOT_FOUND;
+        Ok(response)
     }
 }
 
@@ -83,9 +95,7 @@ async fn main() {
 
     let make_svc = make_service_fn(move |_| {
         let peers = peers.clone();
-        async move {
-            Ok::<_, Infallible>(service_fn(move |req| handle_request(req, peers.clone())))
-        }
+        async move { Ok::<_, Infallible>(service_fn(move |req| handle_request(req, peers.clone()))) }
     });
 
     let server = Server::bind(&addr).serve(make_svc);
