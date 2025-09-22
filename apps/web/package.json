@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@chatyy/ui": "workspace:*",
+    "@google-cloud/iam-credentials": "^4.2.0",
     "@vercel/functions": "^3.1.0",
     "google-auth-library": "^10.3.0",
     "lodash": "^4.17.21",
